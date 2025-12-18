@@ -1,101 +1,81 @@
 # Embedded-Sensor-Logger
 
-This project implements an optimized embedded sensor logger firmware demonstrating:
-- Interrupt-driven sampling (TIM2) for consistent timing
-- Sensor acquisition over I2C (MPU6050 + BMP280) with retry-based robustness
-- SPI communication layer + demo WHOAMI read (optional)
-- Basic DSP filtering (moving average) for noise reduction
-- UART telemetry streaming with timeout + recovery behavior
-- Bring-up steps and verification using oscilloscope/logic analyzer
+Firmware that samples sensor data with interrupt-driven timing and streams telemetry over UART with robust error handling.
 
-## Target Platform
-- Board: NUCLEO-F401RE (STM32F401RE, 84 MHz)
-- UART: USART2 via ST-LINK Virtual COM Port (115200 8N1)
-- I2C: I2C1 (400 kHz)
+## Features
+- TIM2 interrupt-driven sampling @ 100 Hz (deterministic timing)
+- Telemetry over USART2 (ST-LINK VCP) @ 10 Hz
+- I2C sensor comms (MPU6050 + BMP280) with retry + timeout handling
+- Lightweight DSP: 8-sample moving average on accel axes
+- UART fault recovery (abort + deinit/init on error)
+- Validity mask in telemetry to show which sensors succeeded
+
+## Target Hardware
+- Board: NUCLEO-F401RE (STM32F401RE)
+- UART: USART2 via ST-LINK Virtual COM Port
+- I2C: I2C1 (PB8 SCL, PB9 SDA)
+
+## Sensors
+- MPU6050 I2C address: 0x68 (default)
+- BMP280 I2C address: 0x76 (some boards use 0x77; update SL_BMP280_ADDR7)
+
+## CubeMX Configuration (Required)
+Create a CubeMX project for NUCLEO-F401RE and enable:
+1) USART2 (Asynchronous)
+   - 115200 baud, 8N1
+2) I2C1
+   - 400 kHz (Fast Mode) recommended
+3) TIM2 (Base Timer)
+   - Enable Update Interrupt (NVIC)
+   - Configure to 100 Hz update rate
+
+TIM2 suggestion:
+- Set TIM2 counter clock to 10 kHz
+- Set period to 100 - 1 (=> 100 Hz)
+
+Generate code, then copy these files into your project:
+- Core/Inc/sensor_logger.h
+- Core/Src/sensor_logger.c
+- Replace Core/Src/main.c with the provided one (or copy the USER CODE blocks)
 
 ## Wiring
-### UART
-- Uses onboard ST-LINK VCP (no extra wiring)
-- Open serial terminal at 115200 baud
-
-### I2C Sensors (I2C1)
-- SCL: PB8
-- SDA: PB9
-- VCC: 3.3V
-- GND: GND
+- MPU6050: VCC=3.3V, GND, SDA=PB9, SCL=PB8
+- BMP280: VCC=3.3V, GND, SDA=PB9, SCL=PB8
 Notes:
-- Ensure pull-ups exist on SDA/SCL (many breakout boards include them)
-- BMP280 address may be 0x76 or 0x77. If your board is 0x77, change I2C_ADDR_BMP in app.c.
+- Ensure SDA/SCL pull-ups exist (most breakouts include them)
 
-### SPI Demo (Optional)
-- SPI1 pins: PA5(SCK), PA6(MISO), PA7(MOSI)
-- CS: PA6 is used as GPIO in this template for CS (adjust if needed)
-- Enable by setting ENABLE_SPI_DEMO=1 in app.c and matching WHOAMI register/value for your SPI sensor.
-
-## Telemetry Format
-UART prints one line per telemetry event:
+## Telemetry Output
+Lines look like:
 TS:<ms>,V:<mask>,AX:<g>,AY:<g>,AZ:<g>,GX:<dps>,GY:<dps>,GZ:<dps>,T:<C>,P:<hPa>
 
-Validity mask V:
-- bit0 (1): MPU6050 read OK
-- bit1 (2): BMP280 read OK
-Example: V=3 means both sensors OK.
+Validity mask (V):
+- bit0 (1): MPU6050 OK
+- bit1 (2): BMP280 OK
+Example: V=3 means both OK.
 
-## Code Notes (Design)
-- app.c: main scheduling logic; uses flags from TIM2 tick to run sample/process/telemetry.
-- moving_average.c: O(1) moving average using ring buffer + running sum.
-- comm_i2c.c: HAL I2C memory read/write with retry logic and small inter-retry delay.
-- telemetry.c: UART output using snprintf and UART timeout; abort/deinit on error so board layer can re-init.
-- bmp280.c: reads calibration and applies temperature/pressure compensation for real units.
-
-## Bring-Up Steps
-1. Create CubeIDE project for NUCLEO-F401RE.
-2. Enable peripherals (or leave if already default):
-   - USART2 Asynchronous
-   - I2C1
-   - TIM2 base timer with interrupt enabled
-   - SPI1 (only needed if you enable the SPI demo)
-3. Copy the provided files into Core/Inc and Core/Src.
-4. Build + flash.
-5. Open serial monitor (115200 8N1). Confirm telemetry lines.
-
-## Verification (Oscilloscope / Logic Analyzer)
-### Timing verification (TIM2 tick)
-- Option A: Toggle LD2 (PA5) inside App_TimerTick() temporarily and measure:
-  - Period should be 10 ms for 100 Hz
-  - Jitter should be minimal
-- Option B: Use LA on a spare GPIO toggle around sample routine to confirm sample execution time < 10 ms.
-
-### I2C signal integrity
-- Probe PB8/PB9:
-  - Confirm clean rise times and no excessive ringing
-  - If edges are slow: reduce I2C speed to 100 kHz or adjust pull-ups
-
-### UART integrity
-- Confirm no framing errors at 115200.
-- If missing floats, enable printf float support (see below).
-
-## Common Build Gotcha: printf float support
-If floats print as 0.00 or not at all, add linker flag:
+## Build Note (printf float)
+If float formatting prints incorrectly, add linker flag:
 - -u _printf_float
-CubeIDE: Project Properties -> C/C++ Build -> Settings -> MCU GCC Linker -> Miscellaneous.
+CubeIDE: Project Properties → C/C++ Build → Settings → MCU GCC Linker → Miscellaneous → Linker flags.
+
+## Verification (Scope / Logic Analyzer)
+Timing:
+- Confirm TIM2 tick frequency at 100 Hz by toggling a GPIO in the timer callback if desired.
+I2C integrity:
+- Probe PB8/PB9 for clean edges and stable rise times.
+UART integrity:
+- Confirm 115200 8N1, no framing errors, stable line rate.
 
 ## Test Cases
-1. Baseline output:
-   - Telemetry prints continuously
-2. MPU6050 sanity:
-   - Flat on table: AZ ~ 1 g
-   - Tilt: AX/AY change as expected
-3. BMP280 sanity:
-   - Temp near room temperature
-   - Pressure around ~1000–1025 hPa depending on altitude/weather
-4. Fault injection:
-   - Disconnect BMP280: V mask becomes 1; firmware continues running
-   - Disconnect MPU6050: V mask becomes 2; firmware continues running
-   - Shorten/lengthen I2C wires: observe retry behavior and error counters (extend telemetry if desired)
+1) Normal operation: steady telemetry at 10 Hz
+2) Disconnect BMP280: V becomes 1, firmware continues
+3) Disconnect MPU6050: V becomes 2, firmware continues
+4) Add noisy wiring / longer leads: observe retries and error count rising while system continues
 
-## Future of the Project
-- Convert UART to DMA + ring buffer for non-blocking telemetry
-- Add packet framing + CRC for binary streaming
-- Add watchdog (IWDG) for autonomous recovery
-- Add SD card logging (FATFS) for offline capture
+## Recommended GitHub Contents
+- Core/Inc/sensor_logger.h
+- Core/Src/sensor_logger.c
+- Core/Src/main.c
+- README.md
+- .gitignore
+Optionally include the .ioc for easy reproduction if you want “clone + regenerate”.
