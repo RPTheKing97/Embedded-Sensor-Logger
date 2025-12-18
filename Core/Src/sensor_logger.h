@@ -1,5 +1,8 @@
 /* =================== INCLUDES =================== */
 #pragma once
+#ifndef SENSOR_LOGGER_H
+#define SENSOR_LOGGER_H
+
 #include "stm32f4xx_hal.h"
 #include <stdint.h>
 
@@ -13,7 +16,7 @@
 #define SL_UART_TIMEOUT_MS       50U
 
 #define SL_MPU6050_ADDR7         0x68U
-#define SL_BMP280_ADDR7          0x76U
+#define SL_BMP280_ADDR7          0x76U  /* change to 0x77U if your module uses 0x77 */
 
 /* =================== TYPES =================== */
 typedef struct {
@@ -42,3 +45,5 @@ void SL_OnTim2Tick(void);
 
 const SL_SensorData_t* SL_GetLatest(void);
 const SL_Status_t* SL_GetStatus(void);
+
+#endif /* SENSOR_LOGGER_H */
