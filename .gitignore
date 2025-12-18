@@ -1,0 +1,27 @@
+# STM32CubeIDE / Eclipse
+.project
+.cproject
+.settings/
+.metadata/
+*.launch
+
+# Build output
+Debug/
+Release/
+build/
+*.o
+*.a
+*.d
+*.su
+*.map
+*.elf
+*.bin
+*.hex
+*.lst
+
+# CubeIDE generated intermediates
+**/CM7/**
+
+# OS files
+.DS_Store
+Thumbs.db
