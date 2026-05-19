@@ -71,11 +71,3 @@ UART integrity:
 2) Disconnect BMP280: V becomes 1, firmware continues
 3) Disconnect MPU6050: V becomes 2, firmware continues
 4) Add noisy wiring / longer leads: observe retries and error count rising while system continues
-
-## Recommended GitHub Contents
-- Core/Inc/sensor_logger.h
-- Core/Src/sensor_logger.c
-- Core/Src/main.c
-- README.md
-- .gitignore
-Optionally include the .ioc for easy reproduction if you want “clone + regenerate”.
