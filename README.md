@@ -2,8 +2,6 @@
 
 STM32 NUCLEO-F401RE firmware that samples an MPU6050 and BMP280 over I2C, filters accelerometer data, detects sensor disconnects, and streams live UART telemetry for a Python dashboard.
 
-![Embedded Sensor Logger Hardware Schematic](docs/embedded_sensor_logger_schematic.png)
-
 ## Project Highlights
 
 - **STM32 NUCLEO-F401RE / STM32F401RE** firmware written in C using STM32 HAL.
