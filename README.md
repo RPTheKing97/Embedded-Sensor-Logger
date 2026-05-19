@@ -30,7 +30,8 @@ Embedded-Sensor-Logger/
 ├── docs/
 │   ├── demo_test_plan.md
 │   ├── telemetry_format.md
-│   └── embedded_sensor_logger_schematic.png
+│   ├── project_update_summary.md
+│   └── hardware_schematic.png
 ├── requirements.txt
 ├── .gitignore
 └── README.md
