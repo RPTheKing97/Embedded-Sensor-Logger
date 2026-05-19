@@ -55,7 +55,7 @@ Embedded-Sensor-Logger/
 | MPU6050 | Accelerometer + gyroscope | `0x68` |
 | BMP280 | Temperature + pressure | `0x76` by default; some modules use `0x77` |
 
-If your BMP280 board uses `0x77`, change this line in `Core/Inc/sensor_logger.h`:
+If testing with a BMP280 board use `0x77`, change this line in `Core/Inc/sensor_logger.h`:
 
 ```c
 #define SL_BMP280_ADDR7 0x77U
@@ -74,7 +74,7 @@ Most breakout boards include SDA/SCL pull-ups. If the I2C bus is unstable, use s
 
 ## STM32CubeMX Setup
 
-Create or open a CubeMX project for **NUCLEO-F401RE** and enable:
+CubeMX project for **NUCLEO-F401RE** and enabled:
 
 1. **USART2**
    - Mode: Asynchronous
@@ -96,7 +96,7 @@ Prescaler = 8399    => 10 kHz timer counter
 Period    = 99      => 100 Hz update interrupt
 ```
 
-Then copy the provided files into your CubeIDE project:
+Then copy the provided files into the CubeIDE project:
 
 ```text
 Core/Inc/sensor_logger.h
@@ -144,34 +144,6 @@ Scaled units:
 
 This avoids expensive float formatting on the STM32, so the project does **not** require the `-u _printf_float` linker flag.
 
-## Python Live Dashboard
-
-Install dependencies:
-
-```bash
-pip install -r requirements.txt
-```
-
-Run on Windows:
-
-```bash
-python dashboard/serial_dashboard.py --port COM5
-```
-
-Run on Linux/macOS:
-
-```bash
-python dashboard/serial_dashboard.py --port /dev/ttyACM0
-```
-
-The dashboard plots:
-
-- Accelerometer X/Y/Z in g
-- Gyroscope X/Y/Z in degrees/second
-- BMP280 temperature and pressure
-- Error and retry counters
-- Live sensor validity state from `V`
-
 ## Verification / Demo Test Cases
 
 Use a serial monitor or the Python dashboard while running these tests:
@@ -193,25 +165,3 @@ Use a serial monitor or the Python dashboard while running these tests:
 4. **Add noisy wiring / longer leads**
    - Expected: dashboard continues updating.
    - Expected: retry counter rises while firmware remains alive.
-
-## Demo Video Plan
-
-A complete shot list is included in:
-
-```text
-docs/demo_test_plan.md
-```
-
-Recommended demo sequence:
-
-1. Show the NUCLEO-F401RE, MPU6050, and BMP280 wiring.
-2. Pan to the Python dashboard showing normal `V:3` telemetry.
-3. Disconnect BMP280 and show `V:1`.
-4. Reconnect BMP280 and show recovery to `V:3`.
-5. Disconnect MPU6050 and show `V:2`.
-6. Add longer/noisy wiring and show retries/errors increasing while the system continues.
-
-## Resume Description
-
-**Embedded Sensor Logger Firmware (STM32 / C + Python Dashboard)**  
-Built STM32F401RE firmware that samples MPU6050 and BMP280 sensors using TIM2 interrupt-driven timing at 100 Hz, streams UART telemetry at 10 Hz, detects sensor disconnects through a validity mask, tracks retry/error counters, filters accelerometer data with an 8-sample moving average, and visualizes live telemetry using a Python serial dashboard.
