@@ -33,6 +33,30 @@
 #define SL_MPU6050_ADDR7         0x68U
 #define SL_BMP280_ADDR7          0x76U  /* change to 0x77U if your module uses 0x77 */
 
+#if SL_SAMPLE_RATE_HZ == 0U
+#error "SL_SAMPLE_RATE_HZ must be greater than zero"
+#endif
+
+#if SL_TELEMETRY_RATE_HZ == 0U
+#error "SL_TELEMETRY_RATE_HZ must be greater than zero"
+#endif
+
+#if SL_TELEMETRY_RATE_HZ > SL_SAMPLE_RATE_HZ
+#error "SL_TELEMETRY_RATE_HZ must not exceed SL_SAMPLE_RATE_HZ"
+#endif
+
+#if (SL_SAMPLE_RATE_HZ % SL_TELEMETRY_RATE_HZ) != 0U
+#error "SL_SAMPLE_RATE_HZ must be an integer multiple of SL_TELEMETRY_RATE_HZ"
+#endif
+
+#if SL_MA_WINDOW == 0U
+#error "SL_MA_WINDOW must be greater than zero"
+#endif
+
+#if SL_MAX_RETRIES == 0U
+#error "SL_MAX_RETRIES must be greater than zero"
+#endif
+
 /* Validity mask bits sent in telemetry */
 #define SL_VALID_MPU6050         0x01U
 #define SL_VALID_BMP280          0x02U

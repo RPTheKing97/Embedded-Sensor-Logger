@@ -10,11 +10,11 @@ Integrated updates:
 - 8-sample moving average filter on acceleration axes.
 - Python serial dashboard for live plotting.
 - README updated with wiring, telemetry format, dashboard steps, and demo plan.
-- README schematic image generated under `docs/embedded_sensor_logger_schematic.png`.
+- README schematic image is stored as `docs/hardware_schematic.png`.
 
 Local sanity checks performed:
-- C source syntax checked with a lightweight STM32 HAL stub.
-- Python dashboard syntax checked with `python -m py_compile`.
+- Firmware source reviewed locally; run a CubeIDE or ARM GCC build before flashing.
+- Python dashboard syntax checked with bundled Python.
 
 Note:
-- The C syntax check is not a substitute for a CubeIDE build because the full STM32Cube HAL project, startup file, linker script, and generated project metadata are not included here.
+- A full firmware build requires the STM32Cube HAL project, startup file, linker script, and generated project metadata, which are not included here.

@@ -13,7 +13,6 @@ import argparse
 import collections
 import re
 import threading
-import time
 from dataclasses import dataclass
 from typing import Deque, Dict, List, Optional
 
@@ -85,29 +84,39 @@ class TelemetryBuffer:
 
 
 def serial_reader(port: str, baud: int, buf: TelemetryBuffer, stop: threading.Event) -> None:
-    try:
-        with serial.Serial(port, baudrate=baud, timeout=1) as ser:
-            ser.reset_input_buffer()
-            while not stop.is_set():
-                raw = ser.readline().decode("utf-8", errors="replace").strip()
-                if not raw:
-                    continue
-                parsed = parse_telemetry(raw)
-                if parsed is not None:
-                    buf.append(parsed, raw)
-    except serial.SerialException as exc:
-        buf.set_error(f"Serial error: {exc}")
+    while not stop.is_set():
+        try:
+            with serial.Serial(port, baudrate=baud, timeout=1) as ser:
+                buf.set_error("")
+                ser.reset_input_buffer()
+                while not stop.is_set():
+                    raw = ser.readline().decode("utf-8", errors="replace").strip()
+                    if not raw:
+                        continue
+                    parsed = parse_telemetry(raw)
+                    if parsed is not None:
+                        buf.append(parsed, raw)
+        except (OSError, serial.SerialException) as exc:
+            buf.set_error(f"Serial error: {exc}")
+            stop.wait(1.0)
 
 
 def series(rows: List[Dict[str, float]], key: str) -> List[float]:
     return [r[key] for r in rows]
 
 
+def positive_int(value: str) -> int:
+    parsed = int(value)
+    if parsed <= 0:
+        raise argparse.ArgumentTypeError("must be greater than zero")
+    return parsed
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Live plotter for STM32 sensor logger telemetry.")
     parser.add_argument("--port", required=True, help="Serial port, for example COM5 or /dev/ttyACM0")
-    parser.add_argument("--baud", type=int, default=115200, help="UART baud rate")
-    parser.add_argument("--window", type=int, default=600, help="Number of samples to keep on screen")
+    parser.add_argument("--baud", type=positive_int, default=115200, help="UART baud rate")
+    parser.add_argument("--window", type=positive_int, default=600, help="Number of samples to keep on screen")
     args = parser.parse_args()
 
     buf = TelemetryBuffer(maxlen=args.window)
@@ -116,10 +125,10 @@ def main() -> None:
     thread = threading.Thread(target=serial_reader, args=(args.port, args.baud, buf, stop), daemon=True)
     thread.start()
 
-    fig, axes = plt.subplots(4, 1, sharex=True, figsize=(11, 8))
+    fig, axes = plt.subplots(5, 1, sharex=True, figsize=(11, 9))
     fig.suptitle("STM32 Sensor Logger Live Dashboard")
 
-    ax_accel, ax_gyro, ax_env, ax_status = axes
+    ax_accel, ax_gyro, ax_temp, ax_pressure, ax_status = axes
 
     accel_lines = {
         "AX": ax_accel.plot([], [], label="AX (g)")[0],
@@ -131,8 +140,8 @@ def main() -> None:
         "GY": ax_gyro.plot([], [], label="GY (dps)")[0],
         "GZ": ax_gyro.plot([], [], label="GZ (dps)")[0],
     }
-    temp_line = ax_env.plot([], [], label="Temp (C)")[0]
-    pressure_line = ax_env.plot([], [], label="Pressure (hPa)")[0]
+    temp_line = ax_temp.plot([], [], label="Temp (C)")[0]
+    pressure_line = ax_pressure.plot([], [], label="Pressure (hPa)")[0]
     err_line = ax_status.plot([], [], label="Errors")[0]
     ret_line = ax_status.plot([], [], label="Retries")[0]
 
@@ -143,7 +152,8 @@ def main() -> None:
     ax_status.set_xlabel("Time (s)")
     ax_accel.set_ylabel("Accel")
     ax_gyro.set_ylabel("Gyro")
-    ax_env.set_ylabel("Env")
+    ax_temp.set_ylabel("Temp")
+    ax_pressure.set_ylabel("Pressure")
     ax_status.set_ylabel("Faults")
 
     status_text = fig.text(0.01, 0.01, "", fontsize=9)
@@ -189,6 +199,7 @@ def main() -> None:
         return list(accel_lines.values()) + list(gyro_lines.values()) + [temp_line, pressure_line, err_line, ret_line]
 
     ani = animation.FuncAnimation(fig, update, interval=100, blit=False)
+    fig.tight_layout(rect=(0, 0.04, 1, 0.96))
 
     try:
         plt.show()

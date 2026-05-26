@@ -72,6 +72,8 @@ static void sample_all(void);
 static void process_all(void);
 static void send_uart(void);
 static int32_t scale_i32(float value, float scale);
+static void clear_mpu_fields(SL_SensorData_t *out);
+static void clear_bmp_fields(SL_SensorData_t *out);
 
 /* =================== API =================== */
 HAL_StatusTypeDef SL_Init(UART_HandleTypeDef *huart2,
@@ -102,11 +104,13 @@ HAL_StatusTypeDef SL_Init(UART_HandleTypeDef *huart2,
 
 void SL_Loop(void)
 {
-    while (g_sample_pending > 0U) {
+    for (;;) {
         __disable_irq();
-        if (g_sample_pending > 0U) {
-            g_sample_pending--;
+        if (g_sample_pending == 0U) {
+            __enable_irq();
+            break;
         }
+        g_sample_pending--;
         __enable_irq();
 
         sample_all();
@@ -382,45 +386,51 @@ static void sample_all(void)
 
     uint8_t ok_mpu = 0U;
     uint8_t ok_bmp = 0U;
+    uint8_t attempted_mpu = 0U;
+    uint8_t attempted_bmp = 0U;
 
     if (g_mpu_ready) {
+        attempted_mpu = 1U;
         ok_mpu = mpu_read(&g_raw);
     } else if (++mpu_reinit_ctr >= SL_SAMPLE_RATE_HZ) {
         mpu_reinit_ctr = 0U;
+        attempted_mpu = 1U;
         g_mpu_ready = (mpu_init() == HAL_OK) ? 1U : 0U;
         if (g_mpu_ready) ok_mpu = mpu_read(&g_raw);
     }
 
     if (ok_mpu) {
+        mpu_reinit_ctr = 0U;
         g_raw.valid_mask |= SL_VALID_MPU6050;
     } else {
         g_mpu_ready = 0U;
-        g_stat.comm_errors++;
-        g_stat.mpu_failures++;
-        g_raw.accel_x = 0.0f;
-        g_raw.accel_y = 0.0f;
-        g_raw.accel_z = 0.0f;
-        g_raw.gyro_x = 0.0f;
-        g_raw.gyro_y = 0.0f;
-        g_raw.gyro_z = 0.0f;
+        if (attempted_mpu) {
+            g_stat.comm_errors++;
+            g_stat.mpu_failures++;
+        }
+        clear_mpu_fields(&g_raw);
     }
 
     if (g_bmp_ready) {
+        attempted_bmp = 1U;
         ok_bmp = bmp_read(&g_raw);
     } else if (++bmp_reinit_ctr >= SL_SAMPLE_RATE_HZ) {
         bmp_reinit_ctr = 0U;
+        attempted_bmp = 1U;
         g_bmp_ready = (bmp_init() == HAL_OK) ? 1U : 0U;
         if (g_bmp_ready) ok_bmp = bmp_read(&g_raw);
     }
 
     if (ok_bmp) {
+        bmp_reinit_ctr = 0U;
         g_raw.valid_mask |= SL_VALID_BMP280;
     } else {
         g_bmp_ready = 0U;
-        g_stat.comm_errors++;
-        g_stat.bmp_failures++;
-        g_raw.temperature_c = 0.0f;
-        g_raw.pressure_hpa = 0.0f;
+        if (attempted_bmp) {
+            g_stat.comm_errors++;
+            g_stat.bmp_failures++;
+        }
+        clear_bmp_fields(&g_raw);
     }
 
     g_stat.samples_taken++;
@@ -501,4 +511,24 @@ static int32_t scale_i32(float value, float scale)
         scaled -= 0.5f;
     }
     return (int32_t)scaled;
+}
+
+static void clear_mpu_fields(SL_SensorData_t *out)
+{
+    if (out == NULL) return;
+
+    out->accel_x = 0.0f;
+    out->accel_y = 0.0f;
+    out->accel_z = 0.0f;
+    out->gyro_x = 0.0f;
+    out->gyro_y = 0.0f;
+    out->gyro_z = 0.0f;
+}
+
+static void clear_bmp_fields(SL_SensorData_t *out)
+{
+    if (out == NULL) return;
+
+    out->temperature_c = 0.0f;
+    out->pressure_hpa = 0.0f;
 }
