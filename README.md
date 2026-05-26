@@ -214,7 +214,3 @@ Recommended demo sequence:
 5. Disconnect MPU6050 and show `V:2`.
 6. Add longer/noisy wiring and show retries/errors increasing while the system continues.
 
-## Resume Description
-
-**Embedded Sensor Logger Firmware (STM32 / C + Python Dashboard)**
-Built STM32F401RE firmware that samples MPU6050 and BMP280 sensors using TIM2 interrupt-driven timing at 100 Hz, streams UART telemetry at 10 Hz, detects sensor disconnects through a validity mask, tracks retry/error counters, filters accelerometer data with an 8-sample moving average, and visualizes live telemetry using a Python serial dashboard.
